@@ -1,6 +1,7 @@
 import mmap
 from colorama import Fore
 import os
+import sys
 import argparse
 from pathlib import Path
 
@@ -49,7 +50,10 @@ def find_in_file(file_abs_path: Path, search_string: str, bare: bool = False) ->
 
 
 def main() -> None:
-    args = argParser().parse_args()
+    if sys.argv[1]:
+        args = argParser().parse_args()
+    else:
+        find_from_stdin(sys.stdin)
     filepath = Path(os.path.abspath(args.file))
 
     if args.keyword is None:
