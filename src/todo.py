@@ -52,11 +52,12 @@ def main() -> None:
     args = argParser().parse_args()
     filepath = Path(os.path.abspath(args.file))
 
-    if args.keyword == None:
-        args.keyword == "TODO"
+    if args.keyword is None:
+        args.keyword = "TODO"
 
     if not filepath.exists():
         raise OSError("File does not exist.")
+
     if filepath.is_dir():
         # TODO: make it possible to search things in a whole dir
         raise NotImplementedError(
