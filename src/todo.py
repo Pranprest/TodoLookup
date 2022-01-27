@@ -68,7 +68,12 @@ def find_from_stdin(stdin, search_string: str, bare: bool = False) -> None:
 
 
 def main() -> None:
-    args = argParser().parse_args()
+    parser = argParser()
+    args = parser.parse_args()
+
+    if args.file == None:
+        parser.print_help()
+        sys.exit(0)
 
     if args.keyword == None:
         args.keyword = "TODO"
