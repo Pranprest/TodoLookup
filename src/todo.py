@@ -4,6 +4,8 @@ import os
 import sys
 import argparse
 from pathlib import Path
+from io import TextIOBase
+# TODO: Make this an installable package
 
 currosslash = "\\" if (os.name == "nt") else "/"
 currfilepath = f"{Path(__file__).parent.absolute()}{currosslash}"
@@ -23,7 +25,7 @@ def argParser():
     _parser.add_argument("-s",
                          "--keyword", "--search",
                          type=str,
-                         nargs="?",
+                         default="TODO",
                          help="keyword that will be searched instead of TODOs"
                          )
 
@@ -68,10 +70,10 @@ def find_from_stdin(stdin, search_string: str, bare: bool = False) -> None:
 def main() -> None:
     args = argParser().parse_args()
 
-    if args.keyword is None:
+    if args.keyword == None:
         args.keyword = "TODO"
 
-    if not args.file is str:
+    if not sys.stdin.isatty():
         find_from_stdin(args.file, args.keyword)
         sys.exit(0)
 
