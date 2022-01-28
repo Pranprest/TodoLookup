@@ -6,7 +6,6 @@ import sys
 import argparse
 from pathlib import Path
 import toml
-# TODO: Make this an installable package
 
 currosslash = "\\" if (os.name == "nt") else "/"
 currfilepath = f"{Path(__file__).parent.absolute()}{currosslash}"
@@ -28,7 +27,7 @@ def argParser():
                          "--keyword", "--search",
                          type=str,
                          nargs="*",
-                         default=["TODO"],
+                         default=["TODO", "FIXME"],
                          help="keywords that will be searched instead of TODOs"
                          )
 
