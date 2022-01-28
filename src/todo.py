@@ -25,8 +25,9 @@ def argParser():
     _parser.add_argument("-s",
                          "--keyword", "--search",
                          type=str,
-                         default="TODO",
-                         help="keyword that will be searched instead of TODOs"
+                         nargs="*",
+                         default=["TODO"],
+                         help="keywords that will be searched instead of TODOs"
                          )
 
     _parser.add_argument("-b",
@@ -39,13 +40,12 @@ def argParser():
     return _parser
 
 
-def find_in_file(file_abs_path: Path, search_string: str, bare: bool = False) -> None:
-    # TODO: Make it possible to search more than one string at a time
+def find_in_file(file_abs_path: Path, search_list: list[str], bare: bool = False) -> None:
     with open(file_abs_path, mode='rb') as f:
         with mmap.mmap(f.fileno(), 0, access=mmap.ACCESS_READ) as s:
             for index, line in enumerate(iter(s.readline, b"")):
                 line = line.decode("utf-8")
-                if line.find(search_string) != -1:
+                if any((search_string := x) in line for x in search_list):
                     if bare == True:
                         print(line, end="")
                     else:
@@ -55,9 +55,9 @@ def find_in_file(file_abs_path: Path, search_string: str, bare: bool = False) ->
                             f"{Fore.RED}line {index}:{Fore.WHITE} {line}", end="")
 
 
-def find_from_stdin(stdin, search_string: str, bare: bool = False) -> None:
+def find_from_stdin(stdin, search_list: list[str], bare: bool = False) -> None:
     for index, line in enumerate(sys.stdin):
-        if line.find(search_string) != -1:
+        if any((search_string := x) in line for x in search_list):
             if bare == True:
                 print(line, end="")
             else:
@@ -75,9 +75,6 @@ def main() -> None:
         parser.print_help()
         sys.exit(0)
 
-    if args.keyword == None:
-        args.keyword = "TODO"
-
     if not sys.stdin.isatty():
         find_from_stdin(args.file, args.keyword)
         sys.exit(0)
@@ -86,13 +83,14 @@ def main() -> None:
 
     if not filepath.exists():
         raise OSError("File does not exist.")
+
     if filepath.is_dir():
         # TODO: make it possible to search things in a whole dir
         raise NotImplementedError(
             "This script still doesnt support directories!")
     else:
         find_in_file(file_abs_path=filepath,
-                     search_string=args.keyword, bare=args.bare)
+                     search_list=args.keyword, bare=args.bare)
 
 
 if __name__ == '__main__':
