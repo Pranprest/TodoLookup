@@ -3,3 +3,7 @@
 venv
 .mypy_cache
 *.log
+__pycache__
+*.pyc
+config.toml
+*.egg-info
