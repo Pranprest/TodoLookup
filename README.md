@@ -29,5 +29,13 @@ extension management:
                         remove an extension to the list of allowed extensions
 ```
 
+## Installation
+
+Install the latest development version from main:
+```
+pip install git+git://github.com/Pranprest/Booky/
+```
+
+
 ## Note
 - Made for fun, I hope it will be useful for someone.
