@@ -1,2 +1,0 @@
-[config]
-allowed_extensions = [".py", ".txt", ".md", ".bat", ".cmd", ".gitignore"]

@@ -1,4 +1,5 @@
 import mmap
+from xml.dom import NotFoundErr
 from colorama import Fore
 import os
 import sys
@@ -9,6 +10,7 @@ import toml
 
 currosslash = "\\" if (os.name == "nt") else "/"
 currfilepath = f"{Path(__file__).parent.absolute()}{currosslash}"
+cfg_file = Path(f"{Path(__file__).parent.absolute()}{currosslash}config.toml")
 
 
 def argParser():
@@ -37,15 +39,37 @@ def argParser():
                          default=False,
                          )
 
+    ext_group = _parser.add_argument_group(
+        "extension management", "ways to manage which extensions are looked after when directories are inputed")
+
+    ext_group.add_argument("--add-ext",
+                           help="adds an extension to the list of allowed extensions",
+                           nargs="*",
+                           metavar="EXTENSION")
+
+    ext_group.add_argument("--list-ext",
+                           help="list all allowed extensions",
+                           action="store_true",
+                           )
+
+    ext_group.add_argument("--remove-ext",
+                           help="remove an extension to the list of allowed extensions",
+                           nargs="*",
+                           metavar="EXTENSION")
     return _parser
 
 
 def get_extensions() -> set[str]:
-    currosslash = "\\" if (os.name == "nt") else "/"
-    cfg_file = Path(
-        f"{Path(__file__).parent.absolute()}{currosslash}config.toml")
     with open(cfg_file, "r") as f:
         cfg = toml.load(f)
+
+    if not "config" in cfg:
+        raise NotFoundErr("Config key not found in config file")
+
+    if len(cfg.get("allowed_extensions")) <= 0:
+        raise NotFoundErr(
+            "No allowed extensions were added, add one with --add-ext!")
+
     return set(cfg["config"]["allowed_extensions"])
 
 
@@ -88,8 +112,58 @@ def main() -> None:
     parser = argParser()
     args = parser.parse_args()
 
+    if not cfg_file.exists() or os.stat(cfg_file).st_size == 0:
+        with open(cfg_file, "w") as f:
+            pog = {"config": {"allowed_extensions": []}}
+            f.seek(0)
+            toml.dump(pog, f)
+            f.truncate()
+    with open(cfg_file, "r") as f:
+        cfg = toml.load(f)
+
+    if args.add_ext != None and len(args.add_ext) >= 1:
+        args.add_ext = set(args.add_ext)
+        for ext in args.add_ext:
+            ext.strip()
+            if ext[0] != ".":
+                ext = "." + ext
+            if ext in cfg["config"]["allowed_extensions"]:
+                print(
+                    f"Extension {ext} is already on the list of allowed extensions, skipping.")
+            else:
+                print(f"Extension {ext} added")
+                cfg["config"]["allowed_extensions"].append(ext)
+        with open(cfg_file, "w") as f:
+            f.seek(0)
+            toml.dump(cfg, f)
+            f.truncate()
+        sys.exit(0)
+
+    if args.list_ext == True:
+        print(f"These are the current allowed extensions:")
+        print(", ".join(cfg["config"]["allowed_extensions"]))
+        sys.exit(0)
+
+    if args.remove_ext != None and len(args.remove_ext) >= 1:
+        for ext in args.remove_ext:
+            ext.strip()
+            if ext[0] != ".":
+                ext = "." + ext
+            if ext not in cfg["config"]["allowed_extensions"]:
+                print(
+                    f"Extension {ext} is not in the list of allowed extensions, skipping.")
+            else:
+                cfg["config"]["allowed_extensions"].remove(ext)
+                print(f"Extension {ext} removed sucessfully")
+        with open(cfg_file, "w") as f:
+            f.seek(0)
+            toml.dump(cfg, f)
+            f.truncate()
+        sys.exit(0)
+
     if len(args.keyword) <= 1:
         args.keyword.append("TODO")
+
     if args.file == None:
         parser.print_help()
         sys.exit(0)
