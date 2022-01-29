@@ -63,11 +63,12 @@ def get_extensions() -> set[str]:
         cfg = toml.load(f)
 
     if not "config" in cfg:
-        raise NotFoundErr("Config key not found in config file")
+        print("Config key not found in config file")
+        sys.exit(1)
 
-    if len(cfg.get("allowed_extensions")) <= 0:
-        raise NotFoundErr(
-            "No allowed extensions were added, add one with --add-ext!")
+    if len(cfg["config"]["allowed_extensions"]) <= 0:
+        print("No allowed extensions were added, add one with --add-ext!")
+        sys.exit(1)
 
     return set(cfg["config"]["allowed_extensions"])
 
