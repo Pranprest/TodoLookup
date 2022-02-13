@@ -7,8 +7,17 @@ import argparse
 from pathlib import Path
 import toml
 
+# The methods started with "__" arent necessarily private per-se, but,
+# it would be a lot better if anyone that imports this
+# module were to not use these functions, because even if
+# they're required for this package to work, they'll probably
+# break everything in other contexts.
 
-def argParser() -> argparse.ArgumentParser:
+# TODO: Add parameters to docstrings
+
+
+def __argParser() -> argparse.ArgumentParser:
+    """Creates argument parser object for handeling arguments"""
     _parser = argparse.ArgumentParser(
         description="Find TODO(s), FIXME(s) or whatever your are searching"
     )
@@ -66,7 +75,17 @@ def argParser() -> argparse.ArgumentParser:
     return _parser
 
 
-def get_extensions(cfg_file_path: Path) -> set[str]:
+def __gen_cfg_file(cfg_file) -> None:
+    if not cfg_file.exists() or os.stat(cfg_file).st_size == 0:
+        with open(cfg_file, "w") as f:
+            file_gen_dict: dict = {"config": {"allowed_extensions": []}}
+            f.seek(0)
+            toml.dump(file_gen_dict, f)
+            f.truncate()
+
+
+def __get_extensions(cfg_file_path: Path) -> set[str]:
+    """Gets all the allowed extensions from config file"""
     with open(cfg_file_path, "r") as f:
         cfg = toml.load(f)
 
@@ -84,6 +103,7 @@ def get_extensions(cfg_file_path: Path) -> set[str]:
 def find_in_dir(
     dir: Path, search_list: list[str], allowed_extensions: set[str], bare: bool = False
 ) -> None:
+    """Finds any string list in every file in folder"""
     files_dir = [
         Path(x).absolute()
         for x in Path(dir).iterdir()
@@ -97,6 +117,7 @@ def find_in_dir(
 def find_in_file(
     file_abs_path: Path, search_list: list[str], bare: bool = False
 ) -> None:
+    """Find a strings in a file!"""
     with open(file_abs_path, mode="rb") as f:
         with mmap.mmap(f.fileno(), 0, access=mmap.ACCESS_READ) as s:
             for index, line in enumerate(iter(s.readline, b"")):
@@ -113,6 +134,7 @@ def find_in_file(
 
 
 def find_from_stdin(search_list: list[str], bare: bool = False) -> None:
+    """Find a strings in sdin! (piped file output)"""
     for index, line in enumerate(sys.stdin):
         if any((search_string := x) in line for x in search_list):
             if bare == True:
@@ -124,19 +146,11 @@ def find_from_stdin(search_list: list[str], bare: bool = False) -> None:
                 print(f"{Fore.RED}line {index}:{Fore.WHITE} {line}", end="")
 
 
-def __gen_cfg_file(cfg_file) -> None:
-    if not cfg_file.exists() or os.stat(cfg_file).st_size == 0:
-        with open(cfg_file, "w") as f:
-            file_gen_dict: dict = {"config": {"allowed_extensions": []}}
-            f.seek(0)
-            toml.dump(file_gen_dict, f)
-            f.truncate()
-
-
 def __arg_handler(
     args: argparse.Namespace,
     cfg_file: Path,
 ) -> None:
+    """Handles all the arguments, made for cleaning the main funcion"""
     with open(cfg_file, "r") as f:
         cfg = toml.load(f)
 
@@ -190,7 +204,7 @@ def main() -> None:
         f"{Path(__file__).parent.absolute()}{CURROSSLASH}config.toml"
     )
 
-    parser = argParser()
+    parser = __argParser()
     args = parser.parse_args()
     print(args)
 
@@ -216,7 +230,7 @@ def main() -> None:
         find_in_dir(
             dir=args.file,
             search_list=args.keyword,
-            allowed_extensions=get_extensions(CFG_FILE),
+            allowed_extensions=__get_extensions(CFG_FILE),
             bare=args.bare,
         )
     else:
