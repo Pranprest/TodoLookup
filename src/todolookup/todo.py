@@ -1,3 +1,5 @@
+import itertools as it
+from glob import iglob
 import mmap
 import os
 import sys
@@ -51,8 +53,9 @@ def __argParser() -> argparse.ArgumentParser:
         "-r",
         "--recursive",
         help="checks directories recursively if specified",
-        action="store_true",
-        default=False,
+        type=int,
+        default=1,
+        nargs="*",
     )
 
     ext_group = _parser.add_argument_group(
@@ -113,24 +116,33 @@ def find_in_dir(
     allowed_extensions: set[str],
     bare: bool = False,
     recursive: bool = False,
+    recursion_levels: int = 1,
 ) -> None:
     """Finds any string list in every file in folder"""
-    allowed_files_dir: list[Path] = []
-    glob_recursive = "**/" if (recursive == True) else ""
+    allowed_files_dir: set[str]
+    glob_recursion = "**/" * recursion_levels
 
-    for extension in allowed_extensions:
-        # Get every file's abs. path in selected dir
-        file_in_dir = list(dir.absolute().glob(f"{glob_recursive}*{extension}"))
-        if len(file_in_dir) >= 1:
-            allowed_files_dir.extend(file_in_dir)
+    # Get every allowed-extension file's abs. path in selected dir and put it on a set
+    allowed_files_dir = set(
+        it.chain.from_iterable(
+            iglob(
+                f"{glob_recursion}*{extension}",
+                root_dir=os.path.abspath(dir),
+                recursive=recursive,
+            )
+            for extension in allowed_extensions
+        )
+    )
 
     for file in allowed_files_dir:
         # FIXME: Don't print result message to files that doesn't have any results!
+        actual_file_path = Path(f"{os.path.abspath(dir)}/{file}")
+
         if bare == True:
             print(f"\nResults in {file}:")
         else:
             print(f"\n{Fore.GREEN}Results in {file}:{Fore.WHITE}")
-        find_in_file(file, search_list=search_list, bare=bare)
+        find_in_file(actual_file_path, search_list=search_list, bare=bare)
 
 
 def find_in_file(
@@ -161,8 +173,6 @@ def find_in_file(
             print(f"File {file_abs_path} is empty")
         else:
             print(f"{Fore.RED}File {file_abs_path} is empty{Fore.WHITE}")
-    finally:
-        return
 
 
 def find_from_stdin(search_list: list[str], bare: bool = False) -> None:
@@ -245,7 +255,7 @@ def main() -> None:
 
     __gen_cfg_file(CFG_FILE)
 
-    if len(args.keyword) <= 1:
+    if len(args.keyword) < 1:
         args.keyword.append("TODO")
 
     __arg_handler(args, CFG_FILE)
