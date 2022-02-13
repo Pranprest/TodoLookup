@@ -7,8 +7,6 @@ import argparse
 from pathlib import Path
 import toml
 
-Path(".").absolute().glob(pattern="")
-
 # The methods started with "__" arent necessarily private per-se, but,
 # it would be a lot better if anyone that imports this module were to not
 # use these functions, because even if they're required for this package
@@ -45,6 +43,14 @@ def __argParser() -> argparse.ArgumentParser:
         "-b",
         "--bare",
         help="removes colors and line count",
+        action="store_true",
+        default=False,
+    )
+
+    _parser.add_argument(
+        "-r",
+        "--recursive",
+        help="checks directories recursively if specified",
         action="store_true",
         default=False,
     )
@@ -102,40 +108,61 @@ def __get_extensions(cfg_file_path: Path) -> set[str]:
 
 
 def find_in_dir(
-    dir: Path, search_list: list[str], allowed_extensions: set[str], bare: bool = False
+    dir: Path,
+    search_list: list[str],
+    allowed_extensions: set[str],
+    bare: bool = False,
+    recursive: bool = False,
 ) -> None:
     """Finds any string list in every file in folder"""
     allowed_files_dir: list[Path] = []
+    glob_recursive = "**/" if (recursive == True) else ""
 
     for extension in allowed_extensions:
         # Get every file's abs. path in selected dir
-        file_in_dir = list(dir.absolute().glob(f"*{extension}"))
+        file_in_dir = list(dir.absolute().glob(f"{glob_recursive}*{extension}"))
         if len(file_in_dir) >= 1:
-            allowed_files_dir.append(*file_in_dir)
+            allowed_files_dir.extend(file_in_dir)
 
     for file in allowed_files_dir:
         # FIXME: Don't print result message to files that doesn't have any results!
-        print(f"Results in {file}:")
+        if bare == True:
+            print(f"\nResults in {file}:")
+        else:
+            print(f"\n{Fore.GREEN}Results in {file}:{Fore.WHITE}")
         find_in_file(file, search_list=search_list, bare=bare)
 
 
 def find_in_file(
-    file_abs_path: Path, search_list: list[str], bare: bool = False
+    file_abs_path: Path,
+    search_list: list[str],
+    bare: bool = False,
 ) -> None:
     """Find a strings in a file!"""
-    with open(file_abs_path, mode="rb") as f:
-        with mmap.mmap(f.fileno(), 0, access=mmap.ACCESS_READ) as s:
-            for index, line in enumerate(iter(s.readline, b"")):
-                line_str = line.decode("utf-8")
-                # TODO: make this work when 2+ values found in the same file
-                if any((search_string := x) in line_str for x in search_list):
-                    if bare == True:
-                        print(line_str, end="")
-                    else:
-                        line_str = line_str.replace(
-                            search_string, f"{Fore.BLUE}{search_string}{Fore.WHITE}"
-                        )
-                        print(f"{Fore.RED}line {index}:{Fore.WHITE} {line_str}", end="")
+    try:
+        with open(file_abs_path, mode="rb") as f:
+            with mmap.mmap(f.fileno(), 0, access=mmap.ACCESS_READ) as s:
+                for index, line in enumerate(iter(s.readline, b"")):
+                    line_str = line.decode("utf-8")
+                    # TODO: make this work when 2+ values found in the same file
+                    if any((search_string := x) in line_str for x in search_list):
+                        if bare == True:
+                            print(line_str, end="")
+                        else:
+                            line_str = line_str.replace(
+                                search_string, f"{Fore.BLUE}{search_string}{Fore.WHITE}"
+                            )
+                            print(
+                                f"{Fore.RED}line {index}:{Fore.WHITE} {line_str}",
+                                end="",
+                            )
+    except ValueError:
+        if bare == True:
+            print(f"File {file_abs_path} is empty")
+        else:
+            print(f"{Fore.RED}File {file_abs_path} is empty{Fore.WHITE}")
+    finally:
+        return
 
 
 def find_from_stdin(search_list: list[str], bare: bool = False) -> None:
@@ -242,6 +269,7 @@ def main() -> None:
             search_list=args.keyword,
             allowed_extensions=__get_extensions(CFG_FILE),
             bare=args.bare,
+            recursive=args.recursive,
         )
     else:
         find_in_file(file_abs_path=args.file, search_list=args.keyword, bare=args.bare)
