@@ -7,11 +7,12 @@ import argparse
 from pathlib import Path
 import toml
 
+Path(".").absolute().glob(pattern="")
+
 # The methods started with "__" arent necessarily private per-se, but,
-# it would be a lot better if anyone that imports this
-# module were to not use these functions, because even if
-# they're required for this package to work, they'll probably
-# break everything in other contexts.
+# it would be a lot better if anyone that imports this module were to not
+# use these functions, because even if they're required for this package
+# to work, they'll probably break everything in other contexts.
 
 # TODO: Add parameters to docstrings
 
@@ -104,12 +105,16 @@ def find_in_dir(
     dir: Path, search_list: list[str], allowed_extensions: set[str], bare: bool = False
 ) -> None:
     """Finds any string list in every file in folder"""
-    files_dir = [
-        Path(x).absolute()
-        for x in Path(dir).iterdir()
-        if Path(x).is_file() and Path(x).suffix in allowed_extensions
-    ]
-    for file in files_dir:
+    allowed_files_dir: list[Path] = []
+
+    for extension in allowed_extensions:
+        # Get every file's abs. path in selected dir
+        file_in_dir = list(dir.absolute().glob(f"*{extension}"))
+        if len(file_in_dir) >= 1:
+            allowed_files_dir.append(*file_in_dir)
+
+    for file in allowed_files_dir:
+        # FIXME: Don't print result message to files that doesn't have any results!
         print(f"Results in {file}:")
         find_in_file(file, search_list=search_list, bare=bare)
 
@@ -153,20 +158,25 @@ def __arg_handler(
     """Handles all the arguments, made for cleaning the main funcion"""
     with open(cfg_file, "r") as f:
         cfg = toml.load(f)
+    allowed_ext = cfg["config"]["allowed_extensions"]
 
     if args.add_ext != None and len(args.add_ext) >= 1:
+        # Make sure there aren't any duplicates
         args.add_ext = set(args.add_ext)
+
         for ext in args.add_ext:
             ext.strip()
             if ext[0] != ".":
+                # Add "." BEFORE extension!
                 ext = "." + ext
-            if ext in cfg["config"]["allowed_extensions"]:
+            if ext in allowed_ext:
                 print(
-                    f"Extension {ext} is already on the list of allowed extensions, skipping."
+                    f"Extension {ext} is already on the list of allowed extensions, skipping..."
                 )
             else:
+                allowed_ext.append(ext)
                 print(f"Extension {ext} added")
-                cfg["config"]["allowed_extensions"].append(ext)
+
         with open(cfg_file, "w") as f:
             f.seek(0)
             toml.dump(cfg, f)
@@ -175,7 +185,7 @@ def __arg_handler(
 
     if args.list_ext == True:
         print(f"These are the current allowed extensions:")
-        print(", ".join(cfg["config"]["allowed_extensions"]))
+        print(", ".join(allowed_ext))
         sys.exit(0)
 
     if args.remove_ext != None and len(args.remove_ext) >= 1:
@@ -183,13 +193,13 @@ def __arg_handler(
             ext.strip()
             if ext[0] != ".":
                 ext = "." + ext
-            if ext not in cfg["config"]["allowed_extensions"]:
+            if ext not in allowed_ext:
                 print(
                     f"Extension {ext} is not in the list of allowed extensions, skipping."
                 )
             else:
-                cfg["config"]["allowed_extensions"].remove(ext)
-                print(f"Extension {ext} removed sucessfully")
+                allowed_ext.remove(ext)
+                print(f"Extension {ext} removed")
         with open(cfg_file, "w") as f:
             f.seek(0)
             toml.dump(cfg, f)
@@ -206,27 +216,27 @@ def main() -> None:
 
     parser = __argParser()
     args = parser.parse_args()
-    print(args)
 
     __gen_cfg_file(CFG_FILE)
 
-    if args.file == None:
-        parser.print_help()
-        sys.exit(0)
-    elif args.file.name == "-":
-        find_from_stdin(args.keyword, args.bare)
-        sys.exit(0)
     if len(args.keyword) <= 1:
         args.keyword.append("TODO")
 
     __arg_handler(args, CFG_FILE)
 
-    filepath = args.file
+    # Put this before handeling arguments, because it might conflict with
+    # some argument options (such as --list/add/rm-ext)
+    if args.file == None:
+        parser.print_help()
+        sys.exit(0)
+    if args.file.name == "-":
+        find_from_stdin(args.keyword, args.bare)
+        sys.exit(0)
 
-    if not filepath.exists():
+    if not args.file.exists():
         raise OSError("File or directory does not exist.")
 
-    if filepath.is_dir():
+    if args.file.is_dir():
         find_in_dir(
             dir=args.file,
             search_list=args.keyword,
@@ -234,7 +244,7 @@ def main() -> None:
             bare=args.bare,
         )
     else:
-        find_in_file(file_abs_path=filepath, search_list=args.keyword, bare=args.bare)
+        find_in_file(file_abs_path=args.file, search_list=args.keyword, bare=args.bare)
 
 
 if __name__ == "__main__":
