@@ -1,5 +1,5 @@
 import mmap
-from xml.dom import NotFoundErr
+from typing import Final
 from colorama import Fore
 import os
 import sys
@@ -7,59 +7,67 @@ import argparse
 from pathlib import Path
 import toml
 
-currosslash = "\\" if (os.name == "nt") else "/"
-currfilepath = f"{Path(__file__).parent.absolute()}{currosslash}"
-cfg_file = Path(f"{Path(__file__).parent.absolute()}{currosslash}config.toml")
 
-
-def argParser():
+def argParser() -> argparse.ArgumentParser:
     _parser = argparse.ArgumentParser(
-        description='Find TODO(s), FIXME(s) or whatever your are searching')
+        description="Find TODO(s), FIXME(s) or whatever your are searching"
+    )
 
-    _parser.add_argument("file",
-                         type=Path,
-                         nargs="?",
-                         default=(None if sys.stdin.isatty() else sys.stdin),
-                         help="file or directory that will be used for searching, if empty, stdin is used"
-                         )
+    _parser.add_argument(
+        "file",
+        type=Path,
+        nargs="?",
+        default=(None if sys.stdin.isatty() else sys.stdin),
+        help="file or directory that will be used for searching, if it's value is '-', stdin is used",
+    )
 
-    _parser.add_argument("-s",
-                         "--keyword", "--search",
-                         type=str,
-                         nargs="*",
-                         default=["TODO", "FIXME"],
-                         help="keywords that will be searched instead of TODOs"
-                         )
+    _parser.add_argument(
+        "-s",
+        "--keyword",
+        "--search",
+        type=str,
+        nargs="*",
+        default=["TODO", "FIXME"],
+        help="keywords that will be searched instead of TODOs",
+    )
 
-    _parser.add_argument("-b",
-                         "--bare",
-                         help="removes colors and line count",
-                         action="store_true",
-                         default=False,
-                         )
+    _parser.add_argument(
+        "-b",
+        "--bare",
+        help="removes colors and line count",
+        action="store_true",
+        default=False,
+    )
 
     ext_group = _parser.add_argument_group(
-        "extension management", "ways to manage which extensions are looked after when directories are inputed")
+        "extension management",
+        "ways to manage which extensions are looked after when directories are inputed",
+    )
 
-    ext_group.add_argument("--add-ext",
-                           help="adds an extension to the list of allowed extensions",
-                           nargs="*",
-                           metavar="EXTENSION")
+    ext_group.add_argument(
+        "--add-ext",
+        help="adds an extension to the list of allowed extensions",
+        nargs="*",
+        metavar="EXTENSION",
+    )
 
-    ext_group.add_argument("--list-ext",
-                           help="list all allowed extensions",
-                           action="store_true",
-                           )
+    ext_group.add_argument(
+        "--list-ext",
+        help="list all allowed extensions",
+        action="store_true",
+    )
 
-    ext_group.add_argument("--remove-ext",
-                           help="remove an extension to the list of allowed extensions",
-                           nargs="*",
-                           metavar="EXTENSION")
+    ext_group.add_argument(
+        "--remove-ext",
+        help="remove an extension to the list of allowed extensions",
+        nargs="*",
+        metavar="EXTENSION",
+    )
     return _parser
 
 
-def get_extensions() -> set[str]:
-    with open(cfg_file, "r") as f:
+def get_extensions(cfg_file_path: Path) -> set[str]:
+    with open(cfg_file_path, "r") as f:
         cfg = toml.load(f)
 
     if not "config" in cfg:
@@ -73,27 +81,35 @@ def get_extensions() -> set[str]:
     return set(cfg["config"]["allowed_extensions"])
 
 
-def find_in_dir(dir: Path, search_list: list[str], allowed_extensions: set[str], bare: bool = False):
-    files_dir = [Path(x).absolute()
-                 for x in Path(dir).iterdir() if Path(x).is_file() and Path(x).suffix in allowed_extensions]
+def find_in_dir(
+    dir: Path, search_list: list[str], allowed_extensions: set[str], bare: bool = False
+) -> None:
+    files_dir = [
+        Path(x).absolute()
+        for x in Path(dir).iterdir()
+        if Path(x).is_file() and Path(x).suffix in allowed_extensions
+    ]
     for file in files_dir:
         print(f"Results in {file}:")
         find_in_file(file, search_list=search_list, bare=bare)
 
 
-def find_in_file(file_abs_path: Path, search_list: list[str], bare: bool = False) -> None:
-    with open(file_abs_path, mode='rb') as f:
+def find_in_file(
+    file_abs_path: Path, search_list: list[str], bare: bool = False
+) -> None:
+    with open(file_abs_path, mode="rb") as f:
         with mmap.mmap(f.fileno(), 0, access=mmap.ACCESS_READ) as s:
             for index, line in enumerate(iter(s.readline, b"")):
-                line = line.decode("utf-8")
-                if any((search_string := x) in line for x in search_list):
+                line_str = line.decode("utf-8")
+                # TODO: make this work when 2+ values found in the same file
+                if any((search_string := x) in line_str for x in search_list):
                     if bare == True:
-                        print(line, end="")
+                        print(line_str, end="")
                     else:
-                        line = line.replace(
-                            search_string, f"{Fore.BLUE}{search_string}{Fore.WHITE}")
-                        print(
-                            f"{Fore.RED}line {index}:{Fore.WHITE} {line}", end="")
+                        line_str = line_str.replace(
+                            search_string, f"{Fore.BLUE}{search_string}{Fore.WHITE}"
+                        )
+                        print(f"{Fore.RED}line {index}:{Fore.WHITE} {line_str}", end="")
 
 
 def find_from_stdin(search_list: list[str], bare: bool = False) -> None:
@@ -103,21 +119,24 @@ def find_from_stdin(search_list: list[str], bare: bool = False) -> None:
                 print(line, end="")
             else:
                 line = line.replace(
-                    search_string, f"{Fore.BLUE}{search_string}{Fore.WHITE}")
-                print(
-                    f"{Fore.RED}line {index}:{Fore.WHITE} {line}", end="")
+                    search_string, f"{Fore.BLUE}{search_string}{Fore.WHITE}"
+                )
+                print(f"{Fore.RED}line {index}:{Fore.WHITE} {line}", end="")
 
 
-def main() -> None:
-    parser = argParser()
-    args = parser.parse_args()
-
+def __gen_cfg_file(cfg_file) -> None:
     if not cfg_file.exists() or os.stat(cfg_file).st_size == 0:
         with open(cfg_file, "w") as f:
-            pog = {"config": {"allowed_extensions": []}}
+            file_gen_dict: dict = {"config": {"allowed_extensions": []}}
             f.seek(0)
-            toml.dump(pog, f)
+            toml.dump(file_gen_dict, f)
             f.truncate()
+
+
+def __arg_handler(
+    args: argparse.Namespace,
+    cfg_file: Path,
+) -> None:
     with open(cfg_file, "r") as f:
         cfg = toml.load(f)
 
@@ -129,7 +148,8 @@ def main() -> None:
                 ext = "." + ext
             if ext in cfg["config"]["allowed_extensions"]:
                 print(
-                    f"Extension {ext} is already on the list of allowed extensions, skipping.")
+                    f"Extension {ext} is already on the list of allowed extensions, skipping."
+                )
             else:
                 print(f"Extension {ext} added")
                 cfg["config"]["allowed_extensions"].append(ext)
@@ -151,7 +171,8 @@ def main() -> None:
                 ext = "." + ext
             if ext not in cfg["config"]["allowed_extensions"]:
                 print(
-                    f"Extension {ext} is not in the list of allowed extensions, skipping.")
+                    f"Extension {ext} is not in the list of allowed extensions, skipping."
+                )
             else:
                 cfg["config"]["allowed_extensions"].remove(ext)
                 print(f"Extension {ext} removed sucessfully")
@@ -161,29 +182,46 @@ def main() -> None:
             f.truncate()
         sys.exit(0)
 
-    if len(args.keyword) <= 1:
-        args.keyword.append("TODO")
+
+def main() -> None:
+    CURROSSLASH: Final = "\\" if (os.name == "nt") else "/"
+    CURRFILEPATH: Final = f"{Path(__file__).parent.absolute()}{CURROSSLASH}"
+    CFG_FILE: Final = Path(
+        f"{Path(__file__).parent.absolute()}{CURROSSLASH}config.toml"
+    )
+
+    parser = argParser()
+    args = parser.parse_args()
+    print(args)
+
+    __gen_cfg_file(CFG_FILE)
 
     if args.file == None:
         parser.print_help()
         sys.exit(0)
-
-    if not sys.stdin.isatty():
+    elif args.file.name == "-":
         find_from_stdin(args.keyword, args.bare)
         sys.exit(0)
+    if len(args.keyword) <= 1:
+        args.keyword.append("TODO")
 
-    filepath = Path(os.path.abspath(args.file))
+    __arg_handler(args, CFG_FILE)
+
+    filepath = args.file
 
     if not filepath.exists():
-        raise OSError("File does not exist.")
+        raise OSError("File or directory does not exist.")
 
     if filepath.is_dir():
-        find_in_dir(dir=args.file, search_list=args.keyword,
-                    allowed_extensions=get_extensions(), bare=args.bare)
+        find_in_dir(
+            dir=args.file,
+            search_list=args.keyword,
+            allowed_extensions=get_extensions(CFG_FILE),
+            bare=args.bare,
+        )
     else:
-        find_in_file(file_abs_path=filepath,
-                     search_list=args.keyword, bare=args.bare)
+        find_in_file(file_abs_path=filepath, search_list=args.keyword, bare=args.bare)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
