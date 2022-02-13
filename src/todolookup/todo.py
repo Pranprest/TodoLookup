@@ -1,11 +1,11 @@
 import mmap
-from typing import Final
-from colorama import Fore
 import os
 import sys
 import argparse
-from pathlib import Path
 import toml
+from pathlib import Path
+from colorama import Fore
+from typing import Final
 
 # The methods started with "__" arent necessarily private per-se, but,
 # it would be a lot better if anyone that imports this module were to not
@@ -236,7 +236,6 @@ def __arg_handler(
 
 def main() -> None:
     CURROSSLASH: Final = "\\" if (os.name == "nt") else "/"
-    CURRFILEPATH: Final = f"{Path(__file__).parent.absolute()}{CURROSSLASH}"
     CFG_FILE: Final = Path(
         f"{Path(__file__).parent.absolute()}{CURROSSLASH}config.toml"
     )
