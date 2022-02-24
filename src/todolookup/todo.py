@@ -15,6 +15,8 @@ from typing import Final
 # to work, they'll probably break everything in other contexts.
 
 # TODO: Add parameters to docstrings
+# HACK: Fix "# noqa: F821" comments!
+# TODO: Implement generators and use pyahocorasick to find strings!
 
 
 def __argParser() -> argparse.ArgumentParser:
@@ -99,7 +101,7 @@ def __get_extensions(cfg_file_path: Path) -> set[str]:
     with open(cfg_file_path, "r") as f:
         cfg = toml.load(f)
 
-    if not "config" in cfg:
+    if "config" not in cfg:
         print("Config key not found in config file")
         sys.exit(1)
 
@@ -138,7 +140,7 @@ def find_in_dir(
         # FIXME: Don't print result message to files that doesn't have any results!
         actual_file_path = Path(f"{os.path.abspath(dir)}/{file}")
 
-        if bare == True:
+        if bare:
             print(f"\nResults in {file}:")
         else:
             print(f"\n{Fore.GREEN}Results in {file}:{Fore.WHITE}")
@@ -158,18 +160,19 @@ def find_in_file(
                     line_str = line.decode("utf-8")
                     # TODO: make this work when 2+ values found in the same file
                     if any((search_string := x) in line_str for x in search_list):
-                        if bare == True:
+                        if bare:
                             print(line_str, end="")
                         else:
                             line_str = line_str.replace(
-                                search_string, f"{Fore.BLUE}{search_string}{Fore.WHITE}"
+                                search_string,  # noqa: F821
+                                f"{Fore.BLUE}{search_string}{Fore.WHITE}",  # noqa: F821
                             )
                             print(
                                 f"{Fore.RED}line {index}:{Fore.WHITE} {line_str}",
                                 end="",
                             )
     except ValueError:
-        if bare == True:
+        if bare:
             print(f"File {file_abs_path} is empty")
         else:
             print(f"{Fore.RED}File {file_abs_path} is empty{Fore.WHITE}")
@@ -179,11 +182,12 @@ def find_from_stdin(search_list: list[str], bare: bool = False) -> None:
     """Find a strings in sdin! (piped file output)"""
     for index, line in enumerate(sys.stdin):
         if any((search_string := x) in line for x in search_list):
-            if bare == True:
+            if bare:
                 print(line, end="")
             else:
                 line = line.replace(
-                    search_string, f"{Fore.BLUE}{search_string}{Fore.WHITE}"
+                    search_string,  # noqa: F821
+                    f"{Fore.BLUE}{search_string}{Fore.WHITE}",  # noqa: F821
                 )
                 print(f"{Fore.RED}line {index}:{Fore.WHITE} {line}", end="")
 
@@ -197,7 +201,7 @@ def __arg_handler(
         cfg = toml.load(f)
     allowed_ext = cfg["config"]["allowed_extensions"]
 
-    if args.add_ext != None and len(args.add_ext) >= 1:
+    if args.add_ext is not None and len(args.add_ext) >= 1:
         # Make sure there aren't any duplicates
         args.add_ext = set(args.add_ext)
 
@@ -220,12 +224,12 @@ def __arg_handler(
             f.truncate()
         sys.exit(0)
 
-    if args.list_ext == True:
-        print(f"These are the current allowed extensions:")
+    if args.list_ext:
+        print("These are the current allowed extensions:")
         print(", ".join(allowed_ext))
         sys.exit(0)
 
-    if args.remove_ext != None and len(args.remove_ext) >= 1:
+    if args.remove_ext is not None and len(args.remove_ext) >= 1:
         for ext in args.remove_ext:
             ext.strip()
             if ext[0] != ".":
@@ -262,7 +266,7 @@ def main() -> None:
 
     # Put this before handeling arguments, because it might conflict with
     # some argument options (such as --list/add/rm-ext)
-    if args.file == None:
+    if args.file is not None:
         parser.print_help()
         sys.exit(0)
     if args.file.name == "-":
