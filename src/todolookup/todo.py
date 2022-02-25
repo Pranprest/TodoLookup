@@ -17,7 +17,7 @@ from typing import Final
 # TODO: Add parameters to docstrings
 # HACK: Fix "# noqa: F821" comments!
 # TODO: Implement generators and use pyahocorasick to find strings!
-
+# TODO: Add logging module for debug information.
 
 def __argParser() -> argparse.ArgumentParser:
     """Creates argument parser object for handeling arguments"""
@@ -55,9 +55,8 @@ def __argParser() -> argparse.ArgumentParser:
         "-r",
         "--recursive",
         help="checks directories recursively if specified",
-        type=int,
-        default=1,
-        nargs="*",
+        action="store_true",
+        default=False
     )
 
     ext_group = _parser.add_argument_group(
@@ -87,7 +86,7 @@ def __argParser() -> argparse.ArgumentParser:
     return _parser
 
 
-def __gen_cfg_file(cfg_file) -> None:
+def __gen_cfg_file(cfg_file: Path) -> None:
     if not cfg_file.exists() or os.stat(cfg_file).st_size == 0:
         with open(cfg_file, "w") as f:
             file_gen_dict: dict = {"config": {"allowed_extensions": []}}
@@ -117,26 +116,42 @@ def find_in_dir(
     search_list: list[str],
     allowed_extensions: set[str],
     bare: bool = False,
-    recursive: bool = False,
-    recursion_levels: int = 1,
+    recursive: bool = False
 ) -> None:
     """Finds any string list in every file in folder"""
-    allowed_files_dir: set[str]
-    glob_recursion = "**/" * recursion_levels
+    files_any_depth: list[str] = []
+    files_curr_dir: list[str] = []
 
     # Get every allowed-extension file's abs. path in selected dir and put it on a set
-    allowed_files_dir = set(
-        it.chain.from_iterable(
-            iglob(
-                f"{glob_recursion}*{extension}",
-                root_dir=os.path.abspath(dir),
-                recursive=recursive,
+    # Apparently, by the way that iglob works, being recursive includes the "previous" path?
+    # So its kind of weird, this is kind if a hack, but still, works great!
+    if recursive:
+        files_any_depth = list(
+            it.chain.from_iterable(
+                # Root directory / whatever else
+                iglob(
+                    # src/(folders)/*.py
+                    f"{dir}/**/*{extension}",
+                    recursive=recursive,
+                )
+                for extension in allowed_extensions
             )
-            for extension in allowed_extensions
         )
-    )
+    else:
+        files_curr_dir = list(
+            it.chain.from_iterable(
+                # Root directory / whatever else
+                iglob(
+                    # src/(folders)/*.py
+                    f"{dir}/*{extension}",
+                    recursive=recursive,
+                )
+                for extension in allowed_extensions
+            )
+        )
+        files_any_depth.extend(files_curr_dir)
 
-    for file in allowed_files_dir:
+    for file in files_any_depth:
         # FIXME: Don't print result message to files that doesn't have any results!
         actual_file_path = Path(f"{os.path.abspath(dir)}/{file}")
 
@@ -266,17 +281,20 @@ def main() -> None:
 
     # Put this before handeling arguments, because it might conflict with
     # some argument options (such as --list/add/rm-ext)
-    if args.file is not None:
+    usr_file: Path = args.file
+
+    if usr_file is None:
         parser.print_help()
         sys.exit(0)
-    if args.file.name == "-":
+
+    if usr_file.name == "-":
         find_from_stdin(args.keyword, args.bare)
         sys.exit(0)
 
-    if not args.file.exists():
+    if not usr_file.exists():
         raise OSError("File or directory does not exist.")
 
-    if args.file.is_dir():
+    if usr_file.is_dir():
         find_in_dir(
             dir=args.file,
             search_list=args.keyword,
@@ -285,7 +303,7 @@ def main() -> None:
             recursive=args.recursive,
         )
     else:
-        find_in_file(file_abs_path=args.file, search_list=args.keyword, bare=args.bare)
+        find_in_file(file_abs_path=usr_file, search_list=args.keyword, bare=args.bare)
 
 
 if __name__ == "__main__":
